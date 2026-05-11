@@ -1,0 +1,8 @@
+{
+  "version": 2,
+  "name": "task-flow-premium",
+  "cleanUrls": true,
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}

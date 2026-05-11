@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Flow Premium - Cloud Sync</title>
+    <meta name="description" content="A professional-grade Todo List with real-time Firebase cloud synchronization.">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Firebase SDKs (Compat Version for CDN) -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
+    <!-- React & Babel CDN -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+            --glass: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --text-main: #f8fafc;
+            --text-dim: #94a3b8;
+            --danger: #f43f5e;
+            --success: #10b981;
+            --warning: #f59e0b;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        body {
+            background: var(--bg-gradient);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-main);
+            overflow-x: hidden;
+            padding: 40px 20px;
+        }
+
+        .bg-blur {
+            position: fixed;
+            width: 40vw;
+            height: 40vw;
+            border-radius: 50%;
+            filter: blur(120px);
+            z-index: -1;
+            opacity: 0.3;
+        }
+
+        .blur-1 {
+            background: var(--primary);
+            top: -10%;
+            left: -10%;
+        }
+
+        .blur-2 {
+            background: #8b5cf6;
+            bottom: -10%;
+            right: -10%;
+        }
+
+        .blur-3 {
+            background: #ec4899;
+            top: 40%;
+            left: 60%;
+            opacity: 0.2;
+        }
+
+        #root {
+            width: 100%;
+            max-width: 540px;
+        }
+
+        .container {
+            background: var(--glass);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            border: 1px solid var(--glass-border);
+            border-radius: 32px;
+            padding: 40px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+            animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        h1 {
+            font-size: 2.8rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            background: linear-gradient(to bottom, #fff 30%, var(--text-dim));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+        }
+
+        .stats {
+            color: var(--text-dim);
+            font-size: 0.95rem;
+            font-weight: 500;
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+        }
+
+        .stat-item span {
+            color: var(--primary);
+            font-weight: 700;
+        }
+
+        .input-group {
+            position: relative;
+            margin-bottom: 24px;
+            display: flex;
+            gap: 12px;
+        }
+
+        .input-wrapper {
+            position: relative;
+            flex: 1;
+        }
+
+        input {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 16px 18px;
+            color: white;
+            font-size: 1rem;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        input:focus {
+            border-color: var(--primary);
+            background: rgba(255, 255, 255, 0.08);
+            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.2);
+        }
+
+        .add-btn {
+            background: var(--primary);
+            border: none;
+            border-radius: 16px;
+            padding: 0 24px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .add-btn:hover {
+            background: var(--primary-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px -5px rgba(99, 102, 241, 0.5);
+        }
+
+        .filter-tabs {
+            display: flex;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 4px;
+            border-radius: 14px;
+            margin-bottom: 24px;
+            gap: 4px;
+        }
+
+        .filter-btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            background: transparent;
+            color: var(--text-dim);
+            font-size: 0.9rem;
+            font-weight: 600;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .filter-btn.active {
+            background: var(--glass);
+            color: white;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .todo-list-container {
+            max-height: 400px;
+            overflow-y: auto;
+            margin-bottom: 24px;
+            padding-right: 4px;
+        }
+
+        .todo-list-container::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .todo-list-container::-webkit-scrollbar-thumb {
+            background: var(--glass-border);
+            border-radius: 10px;
+        }
+
+        .todo-list {
+            list-style: none;
+        }
+
+        .todo-item {
+            display: flex;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 16px;
+            margin-bottom: 12px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            animation: slideIn 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .todo-item:hover {
+            background: rgba(255, 255, 255, 0.06);
+            transform: translateX(6px);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .check-wrapper {
+            margin-right: 16px;
+            cursor: pointer;
+        }
+
+        .check-circle {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: 2px solid var(--glass-border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .check-circle.completed {
+            background: var(--primary);
+            border-color: var(--primary);
+        }
+
+        .todo-text {
+            flex: 1;
+            font-size: 1.05rem;
+            color: var(--text-main);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            word-break: break-all;
+        }
+
+        .todo-text.completed {
+            color: var(--text-dim);
+            text-decoration: line-through;
+            opacity: 0.5;
+        }
+
+        .actions {
+            display: flex;
+            gap: 8px;
+            opacity: 0.3;
+            transition: opacity 0.3s ease;
+        }
+
+        .todo-item:hover .actions {
+            opacity: 1;
+        }
+
+        .action-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-dim);
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 10px;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .action-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        .action-btn.delete:hover {
+            background: rgba(244, 63, 94, 0.1);
+            color: var(--danger);
+        }
+
+        .edit-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid var(--primary);
+            color: white;
+            font-size: 1.05rem;
+            padding: 4px 0;
+            outline: none;
+        }
+
+        .footer-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 20px;
+            border-top: 1px solid var(--glass-border);
+        }
+
+        .clear-btn {
+            background: transparent;
+            border: 1px solid var(--glass-border);
+            color: var(--text-dim);
+            padding: 8px 16px;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .clear-btn:hover {
+            background: rgba(244, 63, 94, 0.1);
+            color: var(--danger);
+            border-color: var(--danger);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 0;
+            color: var(--text-dim);
+        }
+
+        .empty-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+            opacity: 0.3;
+        }
+
+        /* Sync Indicator */
+        .sync-badge {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 8px 12px;
+            border-radius: 20px;
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-dim);
+            z-index: 100;
+        }
+
+        .sync-badge.online {
+            color: var(--success);
+        }
+
+        .sync-badge .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+            box-shadow: 0 0 10px currentColor;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="bg-blur blur-1"></div>
+    <div class="bg-blur blur-2"></div>
+    <div class="bg-blur blur-3"></div>
+
+    <div id="root"></div>
+
+    <!-- Firebase Integration Logic (Updated) -->
+    <script type="text/babel">
+        const { useState, useEffect, useMemo, useRef } = React;
+
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyB27JcF1OP66MpZ3waVmRHBL-zSqoejeIM",
+            authDomain: "to-do-list-2fa8c.firebaseapp.com",
+            projectId: "to-do-list-2fa8c",
+            storageBucket: "to-do-list-2fa8c.firebasestorage.app",
+            messagingSenderId: "1078588183157",
+            appId: "1:1078588183157:web:7c6d51309ecc66f7181e3c"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        const App = () => {
+            const [todos, setTodos] = useState([]);
+            const [inputValue, setInputValue] = useState("");
+            const [filter, setFilter] = useState("all");
+            const [isSyncing, setIsSyncing] = useState(true);
+
+            // Fetch Real-time data from Firestore
+            useEffect(() => {
+                setIsSyncing(true);
+                const unsubscribe = db.collection('todos')
+                    .orderBy('createdAt', 'desc')
+                    .onSnapshot((snapshot) => {
+                        const items = snapshot.docs.map(doc => ({
+                            id: doc.id,
+                            ...doc.data(),
+                            isEditing: false
+                        }));
+                        setTodos(items);
+                        setIsSyncing(false);
+                    }, (error) => {
+                        console.error("Firestore Error:", error);
+                        setIsSyncing(false);
+                    });
+
+                return () => unsubscribe();
+            }, []);
+
+            const addTodo = async () => {
+                if (inputValue.trim() === "") return;
+                const newTodo = {
+                    text: inputValue,
+                    completed: false,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                };
+                setInputValue("");
+                try {
+                    await db.collection('todos').add(newTodo);
+                } catch (e) {
+                    console.error("Error adding todo:", e);
+                }
+            };
+
+            const toggleTodo = async (id, currentStatus) => {
+                try {
+                    await db.collection('todos').doc(id).update({
+                        completed: !currentStatus
+                    });
+                } catch (e) {
+                    console.error("Error toggling todo:", e);
+                }
+            };
+
+            const deleteTodo = async (id) => {
+                try {
+                    await db.collection('todos').doc(id).delete();
+                } catch (e) {
+                    console.error("Error deleting todo:", e);
+                }
+            };
+
+            const saveEdit = async (id, newText) => {
+                if (newText.trim() === "") {
+                    deleteTodo(id);
+                    return;
+                }
+                try {
+                    await db.collection('todos').doc(id).update({
+                        text: newText
+                    });
+                } catch (e) {
+                    console.error("Error saving edit:", e);
+                }
+            };
+
+            const clearCompleted = async () => {
+                const completedTodos = todos.filter(t => t.completed);
+                const batch = db.batch();
+                completedTodos.forEach(todo => {
+                    const ref = db.collection('todos').doc(todo.id);
+                    batch.delete(ref);
+                });
+                try {
+                    await batch.commit();
+                } catch (e) {
+                    console.error("Error clearing completed:", e);
+                }
+            };
+
+            const filteredTodos = useMemo(() => {
+                switch (filter) {
+                    case 'active': return todos.filter(t => !t.completed);
+                    case 'completed': return todos.filter(t => t.completed);
+                    default: return todos;
+                }
+            }, [todos, filter]);
+
+            const stats = {
+                active: todos.filter(t => !t.completed).length,
+                completed: todos.filter(t => t.completed).length
+            };
+
+            const handleKeyPress = (e) => {
+                if (e.key === 'Enter') addTodo();
+            };
+
+            useEffect(() => {
+                if (window.lucide) window.lucide.createIcons();
+            }, [filteredTodos, todos]);
+
+            return (
+                <>
+                    <div className={`sync-badge ${!isSyncing ? 'online' : ''}`}>
+                        <div className="dot"></div>
+                        {isSyncing ? 'Syncing...' : 'Cloud Synced'}
+                    </div>
+
+                    <div className="container">
+                        <header>
+                            <h1>Task Flow</h1>
+                            <div className="stats">
+                                <div className="stat-item">남은 일 <span>{stats.active}</span></div>
+                                <div className="stat-item">완료됨 <span>{stats.completed}</span></div>
+                            </div>
+                        </header>
+
+                        <div className="input-group">
+                            <div className="input-wrapper">
+                                <input
+                                    type="text"
+                                    placeholder="무엇을 해야 하나요?"
+                                    value={inputValue}
+                                    onChange={(e) => setInputValue(e.target.value)}
+                                    onKeyPress={handleKeyPress}
+                                    id="todo-input"
+                                />
+                            </div>
+                            <button className="add-btn" onClick={addTodo} id="add-btn">
+                                <i data-lucide="cloud-upload"></i>
+                                추가
+                            </button>
+                        </div>
+
+                        <div className="filter-tabs">
+                            <button className={`filter-btn ${filter === 'all' ? 'active' : ''}`} onClick={() => setFilter('all')}>전체</button>
+                            <button className={`filter-btn ${filter === 'active' ? 'active' : ''}`} onClick={() => setFilter('active')}>진행 중</button>
+                            <button className={`filter-btn ${filter === 'completed' ? 'active' : ''}`} onClick={() => setFilter('completed')}>완료</button>
+                        </div>
+
+                        <div className="todo-list-container">
+                            {filteredTodos.length === 0 && !isSyncing ? (
+                                <div className="empty-state">
+                                    <div className="empty-icon"><i data-lucide="cloud-off" size="48"></i></div>
+                                    <p>{filter === 'completed' ? '완료된 항목이 없습니다.' : '할 일을 추가해 보세요!'}</p>
+                                </div>
+                            ) : (
+                                <ul className="todo-list">
+                                    {filteredTodos.map(todo => (
+                                        <TodoItem
+                                            key={todo.id}
+                                            todo={todo}
+                                            onToggle={() => toggleTodo(todo.id, todo.completed)}
+                                            onDelete={() => deleteTodo(todo.id)}
+                                            onEditSave={(newText) => saveEdit(todo.id, newText)}
+                                        />
+                                    ))}
+                                </ul>
+                            )}
+                        </div>
+
+                        {todos.length > 0 && (
+                            <div className="footer-actions">
+                                <p style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>
+                                    Cloud storage 활성화 중
+                                </p>
+                                {stats.completed > 0 && (
+                                    <button className="clear-btn" onClick={clearCompleted}>
+                                        완료 항목 지우기
+                                    </button>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </>
+            );
+        };
+
+        const TodoItem = ({ todo, onToggle, onDelete, onEditSave }) => {
+            const [isEditing, setIsEditing] = useState(false);
+            const [tempText, setTempText] = useState(todo.text);
+            const inputRef = useRef(null);
+
+            useEffect(() => {
+                if (isEditing && inputRef.current) inputRef.current.focus();
+            }, [isEditing]);
+
+            const handleKeyDown = (e) => {
+                if (e.key === 'Enter') {
+                    onEditSave(tempText);
+                    setIsEditing(false);
+                }
+                if (e.key === 'Escape') {
+                    setTempText(todo.text);
+                    setIsEditing(false);
+                }
+            };
+
+            return (
+                <li className="todo-item">
+                    <div className="check-wrapper" onClick={onToggle}>
+                        <div className={`check-circle ${todo.completed ? 'completed' : ''}`}>
+                            {todo.completed && <i data-lucide="check" size="14" color="white" strokeWidth="4"></i>}
+                        </div>
+                    </div>
+
+                    {isEditing ? (
+                        <input
+                            ref={inputRef}
+                            className="edit-input"
+                            value={tempText}
+                            onChange={(e) => setTempText(e.target.value)}
+                            onBlur={() => {
+                                onEditSave(tempText);
+                                setIsEditing(false);
+                            }}
+                            onKeyDown={handleKeyDown}
+                        />
+                    ) : (
+                        <span
+                            className={`todo-text ${todo.completed ? 'completed' : ''}`}
+                            onDoubleClick={() => setIsEditing(true)}
+                        >
+                            {todo.text}
+                        </span>
+                    )}
+
+                    <div className="actions">
+                        {!todo.completed && !isEditing && (
+                            <button className="action-btn" onClick={() => setIsEditing(true)} title="수정">
+                                <i data-lucide="edit-3" size="18"></i>
+                            </button>
+                        )}
+                        <button className="action-btn delete" onClick={onDelete} title="삭제">
+                            <i data-lucide="trash-2" size="18"></i>
+                        </button>
+                    </div>
+                </li>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+
+</html>

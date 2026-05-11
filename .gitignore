@@ -1,0 +1,12 @@
+# Gemini/Antigravity artifacts
+.gemini/
+*.md
+*.json
+!vercel.json
+!package.json
+
+# IDE and System files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Flow Premium - User Cloud</title>
+    <meta name="description" content="A professional-grade Todo List with secure Firebase authentication and private cloud sync.">
+    
+    <!-- PWA Settings -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#6366f1">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Task Flow">
+    <link rel="apple-touch-icon" href="icon-512.png">
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Firebase SDKs (Compat Version for CDN) -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+
+    <!-- React & Babel CDN -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+            --glass: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --text-main: #f8fafc;
+            --text-dim: #94a3b8;
+            --danger: #f43f5e;
+            --success: #10b981;
+            --warning: #f59e0b;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        body {
+            background: var(--bg-gradient);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-main);
+            overflow-x: hidden;
+            padding: 20px;
+        }
+
+        .bg-blur {
+            position: fixed;
+            width: 40vw;
+            height: 40vw;
+            border-radius: 50%;
+            filter: blur(120px);
+            z-index: -1;
+            opacity: 0.3;
+        }
+
+        .blur-1 { background: var(--primary); top: -10%; left: -10%; }
+        .blur-2 { background: #8b5cf6; bottom: -10%; right: -10%; }
+
+        #root { width: 100%; max-width: 480px; }
+
+        .container {
+            background: var(--glass);
+            backdrop-filter: blur(30px);
+            -webkit-backdrop-filter: blur(30px);
+            border: 1px solid var(--glass-border);
+            border-radius: 28px;
+            padding: 32px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Auth Styles */
+        .auth-container { text-align: center; }
+        .auth-header { margin-bottom: 32px; }
+        .auth-header h2 { font-size: 2rem; font-weight: 800; margin-bottom: 8px; }
+        .auth-header p { color: var(--text-dim); }
+
+        .auth-form { display: flex; flex-direction: column; gap: 16px; }
+        .auth-input-group { text-align: left; }
+        .auth-input-group label { display: block; font-size: 0.85rem; color: var(--text-dim); margin-bottom: 8px; margin-left: 4px; }
+        
+        .auth-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 14px;
+            padding: 14px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 8px;
+        }
+        .auth-btn:hover { background: var(--primary-hover); transform: translateY(-2px); box-shadow: 0 8px 20px -5px rgba(99, 102, 241, 0.4); }
+
+        .auth-toggle { margin-top: 24px; font-size: 0.9rem; color: var(--text-dim); }
+        .auth-toggle span { color: var(--primary); cursor: pointer; font-weight: 600; text-decoration: underline; }
+
+        .error-msg { color: var(--danger); background: rgba(244, 63, 94, 0.1); padding: 12px; border-radius: 10px; font-size: 0.85rem; margin-bottom: 16px; border: 1px solid rgba(244, 63, 94, 0.2); }
+
+        /* App Styles */
+        header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 28px; }
+        .header-left h1 { font-size: 2.2rem; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; }
+        .user-info { font-size: 0.8rem; color: var(--text-dim); margin-top: 4px; }
+
+        .logout-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border);
+            color: var(--text-dim);
+            padding: 8px 12px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .logout-btn:hover { background: rgba(244, 63, 94, 0.1); color: var(--danger); border-color: var(--danger); }
+
+        .input-group { display: flex; gap: 10px; margin-bottom: 24px; }
+        .input-wrapper { flex: 1; }
+        input {
+            width: 100%; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--glass-border);
+            border-radius: 14px; padding: 14px 16px; color: white; font-size: 0.95rem; outline: none; transition: all 0.3s ease;
+        }
+        input:focus { border-color: var(--primary); background: rgba(255, 255, 255, 0.07); }
+
+        .add-btn {
+            background: var(--primary); border: none; border-radius: 14px; padding: 0 20px;
+            color: white; font-weight: 700; cursor: pointer; transition: all 0.3s ease;
+        }
+        .add-btn:hover { background: var(--primary-hover); }
+
+        .filter-tabs { display: flex; background: rgba(0, 0, 0, 0.2); padding: 4px; border-radius: 12px; margin-bottom: 24px; gap: 4px; }
+        .filter-btn {
+            flex: 1; padding: 8px; border: none; background: transparent; color: var(--text-dim);
+            font-size: 0.85rem; font-weight: 600; border-radius: 8px; cursor: pointer; transition: all 0.2s ease;
+        }
+        .filter-btn.active { background: var(--glass); color: white; }
+
+        .todo-list { list-style: none; max-height: 380px; overflow-y: auto; padding-right: 4px; }
+        .todo-list::-webkit-scrollbar { width: 4px; }
+        .todo-list::-webkit-scrollbar-thumb { background: var(--glass-border); border-radius: 10px; }
+
+        .todo-item {
+            display: flex; align-items: center; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--glass-border);
+            border-radius: 16px; padding: 14px; margin-bottom: 10px; transition: all 0.3s ease;
+        }
+        .todo-item:hover { background: rgba(255, 255, 255, 0.05); transform: translateX(4px); }
+
+        .check-circle {
+            width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--glass-border);
+            margin-right: 14px; display: flex; align-items: center; justify-content: center; cursor: pointer;
+        }
+        .check-circle.completed { background: var(--primary); border-color: var(--primary); }
+
+        .todo-text { flex: 1; font-size: 0.95rem; color: var(--text-main); cursor: pointer; }
+        .todo-text.completed { color: var(--text-dim); text-decoration: line-through; opacity: 0.6; }
+
+        .action-btn {
+            background: transparent; border: none; color: var(--text-dim); padding: 6px; cursor: pointer;
+            border-radius: 8px; transition: all 0.2s ease;
+        }
+        .action-btn:hover { color: white; background: rgba(255, 255, 255, 0.1); }
+        .action-btn.delete:hover { color: var(--danger); background: rgba(244, 63, 94, 0.1); }
+
+        .sync-badge {
+            position: fixed; top: 20px; left: 20px; font-size: 0.75rem; color: var(--text-dim);
+            background: rgba(0, 0, 0, 0.3); padding: 6px 12px; border-radius: 20px; border: 1px solid var(--glass-border);
+            display: flex; align-items: center; gap: 6px;
+        }
+        .sync-badge .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--success); box-shadow: 0 0 8px var(--success); }
+
+        .loading-screen { height: 300px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--text-dim); }
+        .spinner { width: 30px; height: 30px; border: 3px solid rgba(255,255,255,0.1); border-top-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 16px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+
+<body>
+    <div class="bg-blur blur-1"></div>
+    <div class="bg-blur blur-2"></div>
+    
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo, useRef } = React;
+
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyB27JcF1OP66MpZ3waVmRHBL-zSqoejeIM",
+            authDomain: "to-do-list-2fa8c.firebaseapp.com",
+            projectId: "to-do-list-2fa8c",
+            storageBucket: "to-do-list-2fa8c.firebasestorage.app",
+            messagingSenderId: "1078588183157",
+            appId: "1:1078588183157:web:7c6d51309ecc66f7181e3c"
+        };
+
+        // Initialize Firebase
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+
+        const App = () => {
+            const [user, setUser] = useState(null);
+            const [loading, setLoading] = useState(true);
+
+            useEffect(() => {
+                const unsubscribe = auth.onAuthStateChanged((u) => {
+                    setUser(u);
+                    setLoading(false);
+                });
+                return () => unsubscribe();
+            }, []);
+
+            if (loading) return (
+                <div className="container">
+                    <div className="loading-screen"><div className="spinner"></div>인증 확인 중...</div>
+                </div>
+            );
+
+            return user ? <TodoApp user={user} /> : <AuthScreen />;
+        };
+
+        const AuthScreen = () => {
+            const [isLogin, setIsLogin] = useState(true);
+            const [email, setEmail] = useState("");
+            const [password, setPassword] = useState("");
+            const [error, setError] = useState("");
+            const [loading, setLoading] = useState(false);
+
+            const handleAuth = async (e) => {
+                e.preventDefault();
+                setError("");
+                setLoading(true);
+                try {
+                    if (isLogin) {
+                        await auth.signInWithEmailAndPassword(email, password);
+                    } else {
+                        await auth.createUserWithEmailAndPassword(email, password);
+                    }
+                } catch (err) {
+                    setError(err.message);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            return (
+                <div className="container">
+                    <div className="auth-container">
+                        <div className="auth-header">
+                            <h2>Task Flow</h2>
+                            <p>{isLogin ? "환영합니다! 로그인이 필요합니다." : "새로운 계정을 생성하세요."}</p>
+                        </div>
+                        
+                        {error && <div className="error-msg">{error}</div>}
+
+                        <form className="auth-form" onSubmit={handleAuth}>
+                            <div className="auth-input-group">
+                                <label>이메일</label>
+                                <input type="email" placeholder="email@example.com" value={email} onChange={e => setEmail(e.target.value)} required />
+                            </div>
+                            <div className="auth-input-group">
+                                <label>비밀번호</label>
+                                <input type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required />
+                            </div>
+                            <button className="auth-btn" disabled={loading}>
+                                {loading ? "처리 중..." : (isLogin ? "로그인" : "회원가입")}
+                            </button>
+                        </form>
+
+                        <div className="auth-toggle">
+                            {isLogin ? "계정이 없으신가요?" : "이미 계정이 있으신가요?"} 
+                            <span onClick={() => setIsLogin(!isLogin)}>{isLogin ? " 회원가입" : " 로그인"}</span>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const TodoApp = ({ user }) => {
+            const [todos, setTodos] = useState([]);
+            const [inputValue, setInputValue] = useState("");
+            const [filter, setFilter] = useState("all");
+            const [syncing, setSyncing] = useState(true);
+
+            useEffect(() => {
+                // Fetch only user-specific todos
+                const unsubscribe = db.collection('todos')
+                    .where('uid', '==', user.uid)
+                    .orderBy('createdAt', 'desc')
+                    .onSnapshot((snapshot) => {
+                        const items = snapshot.docs.map(doc => ({
+                            id: doc.id,
+                            ...doc.data()
+                        }));
+                        setTodos(items);
+                        setSyncing(false);
+                    });
+                return () => unsubscribe();
+            }, [user.uid]);
+
+            const addTodo = async () => {
+                if (inputValue.trim() === "") return;
+                const text = inputValue;
+                setInputValue("");
+                try {
+                    await db.collection('todos').add({
+                        text,
+                        completed: false,
+                        uid: user.uid,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                } catch (e) { console.error(e); }
+            };
+
+            const toggleTodo = async (id, status) => {
+                await db.collection('todos').doc(id).update({ completed: !status });
+            };
+
+            const deleteTodo = async (id) => {
+                await db.collection('todos').doc(id).delete();
+            };
+
+            const filteredTodos = useMemo(() => {
+                if (filter === 'active') return todos.filter(t => !t.completed);
+                if (filter === 'completed') return todos.filter(t => t.completed);
+                return todos;
+            }, [todos, filter]);
+
+            useEffect(() => {
+                if (window.lucide) window.lucide.createIcons();
+            }, [filteredTodos, todos]);
+
+            return (
+                <>
+                    <div className="sync-badge">
+                        <div className="dot"></div>
+                        Cloud Synced
+                    </div>
+
+                    <div className="container">
+                        <header>
+                            <div className="header-left">
+                                <h1>Task Flow</h1>
+                                <div className="user-info">{user.email}</div>
+                            </div>
+                            <button className="logout-btn" onClick={() => auth.signOut()}>
+                                <i data-lucide="log-out" size="14"></i>
+                                Logout
+                            </button>
+                        </header>
+
+                        <div className="input-group">
+                            <input 
+                                placeholder="할 일을 입력하세요..." 
+                                value={inputValue} 
+                                onChange={e => setInputValue(e.target.value)}
+                                onKeyPress={e => e.key === 'Enter' && addTodo()}
+                            />
+                            <button className="add-btn" onClick={addTodo}>추가</button>
+                        </div>
+
+                        <div className="filter-tabs">
+                            <button className={`filter-btn ${filter === 'all' ? 'active' : ''}`} onClick={() => setFilter('all')}>전체</button>
+                            <button className={`filter-btn ${filter === 'active' ? 'active' : ''}`} onClick={() => setFilter('active')}>진행 중</button>
+                            <button className={`filter-btn ${filter === 'completed' ? 'active' : ''}`} onClick={() => setFilter('completed')}>완료</button>
+                        </div>
+
+                        <ul className="todo-list">
+                            {filteredTodos.length === 0 && !syncing && (
+                                <div className="empty-state">
+                                    <div className="empty-icon"><i data-lucide="inbox" size="40"></i></div>
+                                    <p>항목이 없습니다.</p>
+                                </div>
+                            )}
+                            {filteredTodos.map(todo => (
+                                <li className="todo-item" key={todo.id}>
+                                    <div 
+                                        className={`check-circle ${todo.completed ? 'completed' : ''}`}
+                                        onClick={() => toggleTodo(todo.id, todo.completed)}
+                                    >
+                                        {todo.completed && <i data-lucide="check" size="12" color="white" strokeWidth="4"></i>}
+                                    </div>
+                                    <span className={`todo-text ${todo.completed ? 'completed' : ''}`}>
+                                        {todo.text}
+                                    </span>
+                                    <button className="action-btn delete" onClick={() => deleteTodo(todo.id)}>
+                                        <i data-lucide="x" size="16"></i>
+                                    </button>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                </>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+
+        // Register Service Worker for PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(reg => console.log('SW Registered!', reg))
+                    .catch(err => console.log('SW Registration failed:', err));
+            });
+        }
+    </script>
+</body>
+
+</html>

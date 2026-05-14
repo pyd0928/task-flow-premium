@@ -7,6 +7,15 @@
     
     <!-- SEO & Icons -->
     <meta name="description" content="사용자님의 특별한 개인 포트폴리오 사이트입니다.">
+    
+    <!-- PWA Settings -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#8b5cf6">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="MySpace">
+    <link rel="apple-touch-icon" href="icon-512.png">
+
     <link rel="stylesheet" href="style.css">
     
     <!-- External Libraries -->
@@ -80,6 +89,15 @@
     <script>
         // Initialize Lucide Icons
         lucide.createIcons();
+
+        // Register Service Worker for PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(reg => console.log('App Ready!'))
+                    .catch(err => console.log('App registration failed:', err));
+            });
+        }
 
         // Smooth Scrolling for navigation links
         document.querySelectorAll('nav a').forEach(anchor => {
